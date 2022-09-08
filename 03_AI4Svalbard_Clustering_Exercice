@@ -1,0 +1,82 @@
+//+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+//+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+//S. Aparício ❄️ ECR Observer - SIOS Remote Sensing Working Group
+//            ❄️ Earth observation data scientists - Solenix c/o ESA
+//            ❄️ PhD Candidate - NOVA School of Science and Technology
+//
+// Wednesday Exercice: Clustering a Copernicus Sentinel-2 image - 2
+// Version: Particpant's exercice            
+//
+//+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+//      EXERCICE 2: CLUSTER A S2 CLOUD FREE IMAGE OF THE             ///
+//     LOCATION OF THE FIELD EXCURSION (ENDALEN, SVALBARD)           ///
+//   AND A DRONE SAMPLE IMAGE FROM COASTAL AREA IN SASSENFJORDEN     ///
+//+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+//
+// 
+
+
+///////////////////////////////////////////////////////////////////////////
+////////////////////      1. DEFINED/VIEW AOI                     /////////  
+//////////////////////    2. CREATE IMAGE TO BE CLUSTERED         /////////
+///////////////////////////////////////////////////////////////////////////
+
+//Copy here steps 1. and 2. from the previous exercice 
+
+
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////    3. Collecting training data        /////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+
+//Create a function that will return a FeatureCollection with 100 points
+//containing the spectral value of the image they are located on
+
+
+//var training_data =  S2summerImage.sample({
+  //region: AOI, 
+  //scale: 20,
+  //numPixels: XXXXX - write here the number of points to colect
+//})
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////    4. Create a cluster and train it   /////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+
+// Creat a cluster (e.g. ee.Clusterer.wekaXMeans() ) 
+//var clusterer = your code here
+
+
+// This is still need to be trained. This is done by
+//applying the train() function on the clusterer and passing in the
+//training data
+
+//var clusterer = your code here 
+
+
+// Cluster your S2 summer image with .cluster()
+//var clustered = your code here
+
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////    5. Visualize results              /////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+
+//Map.addLayer(clustered.clip(AOI), clusterVis, 'Clustered Image')
+
+// Now we can look at the result and try to understand or determine what the clusters represent.
+
+/////////////////////////////////////////////////////////////////////////
+// EXPORT IMAGE AS ONE SINGLE IMAGE ON ITS AOI
+//Export.image.toDrive({
+//  image: S1Image,
+//  description: 'S1image',
+//  region: exportAOI
+//});
