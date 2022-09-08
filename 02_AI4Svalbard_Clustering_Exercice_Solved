@@ -1,0 +1,127 @@
+//+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+//+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+//S. Aparício ❄️ ECR Observer - SIOS Remote Sensing Working Group
+//            ❄️ Earth observation data scientists - Solenix c/o ESA
+//            ❄️ PhD Candidate - NOVA School of Science and Technology
+//
+// #AI4Svalbard SIOS Training Cource
+//Exercice: Clustering a Copernicus Sentinel-2 image and a Drone Image
+//
+// Version: Exercice solved 
+//
+//+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+//      EXERCICE 2: CLUSTER A S2 CLOUD FREE IMAGE OF THE             ///
+//     LOCATION OF THE FIELD EXCURSION (ENDALEN, SVALBARD)           ///
+//   AND A DRONE SAMPLE IMAGE FROM COASTAL AREA IN SASSENFJORDEN     ///
+//+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+
+
+/////////////////////////////////////////////////////////////////////////////
+//////////////////////   1. DEFINED AND VISUALIZE AOI           /////////////
+/////////////////////////////////////////////////////////////////////////////
+
+
+// One AOI "geometry" corresponds to the Drone example location (in Sassefjorden)
+// Another AOI "geometry" corresponds to the excursion location in Endalen
+// Uncomment one of the following to zoom in their location:
+
+//Map.centerObject(geometry) //Sassenfjorden location
+Map.centerObject(geometry2) //Excursion location in Endalen
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////    2. PREPARING SATELLITE IMAGERY     /////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+//Define a "summer date" with ee.Date could be from 2022-06-01 to 2022-08-28
+//e.g. ee.Date('2022-01-01')
+
+var start = ee.Date('2022-06-01')
+var end = ee.Date('2022-08-28')
+
+
+
+//Make a collection: ee.ImageCollection() of Sentinel-2 data: 'COPERNICUS/S2'
+//Apply the following filters:  
+//.filterDate - to select the dates
+//.filterBounds - to select the location
+//...and to the cloud percentage!
+
+var S2summerCol = ee.ImageCollection('COPERNICUS/S2')
+                  .filterDate(start,end)
+                  .filterBounds(geometry2)
+                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE',5))
+
+
+//Create a single image could be the first .first() or the average .mean()
+
+var S2Image = S2summerCol.first()
+
+// VISUALIZE THE S2 IMAGE FROM ENDALEN (EXCURION LOCATION)
+Map.addLayer(S2Image.clip(geometry2), S2vis, 'S2 Image')
+// VISUALIZE THE S2 IMAGE FROM SASSENFJORDEN (FOR A DRONE EXAMPLE)
+Map.addLayer(drone, {}, "Drone Image")
+
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////    3. Collecting training data        /////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+
+//During the supervised classification we started at this point to
+//collect data about the differnt clases.
+//Here we won't be doing it manually but we will create a function
+//to give as 100 random points in the area.
+//Ideally should be more than 100 points, but this is just an example to speed things up
+
+
+//This sample function will return a FeatureCollection with 100 points
+//containing the spectral value of the image they are located on
+var training_data_drone = drone.sample({
+  region: geometry, 
+  scale: 20,
+  numPixels: 100,
+})
+
+var training_data_S2 = S2Image.sample({
+  region: geometry2, 
+  scale: 20,
+  numPixels: 100,
+})
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////    4. Create a cluster and train it   /////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+
+// The next stop is to create a clusterer object from one of the different
+//algorithms available:
+//var clusterer = ee.Clusterer.wekaXMeans()
+var clustererKmeans = ee.Clusterer.wekaKMeans(10)
+
+// This is still need to be trained. This is done by
+//applying the train() function on the clusterer and passing in the
+//training data
+//var clusterer = clusterer.train(training_data)
+var clustererDrone = clustererKmeans.train(training_data_drone)
+var clustererS2 = clustererKmeans.train(training_data_S2)
+
+//This cluster has now looked at all this points, and group them by similiarity
+// while these groups are as distinc as possible from other groups of points
+
+
+//When we apply this cluster to our image, it will take all pixels of the image
+//and determine, to which of these groups the pixel is most similar
+
+//var clustered = S2summerImage.cluster(clusterer)
+var clusteredS2 = S2Image.cluster(clustererS2)
+var clusteredDrone = drone.cluster(clustererDrone)
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////    5. Visualize results              /////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+
+//Map.addLayer(clustered.clip(AOI), clusterVis, 'Clustered X Means')
+Map.addLayer(clusteredDrone.clip(geometry), ClusterVis, 'Clustered Drone Image')
+Map.addLayer(clusteredS2.clip(geometry2), ClusterVis, 'Clustered S2 Image')
