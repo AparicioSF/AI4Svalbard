@@ -1,0 +1,160 @@
+//+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+//+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+// S. Aparício ❄️ ECR Observer - SIOS Remote Sensing Working Group
+//             ❄️ Earth observation data scientists - Solenix c/o ESA
+//             ❄️ PhD Candidate - NOVA School of Science and Technology
+//
+// #AI4Svalbard SIOS Training Cource
+// Exercice: Classification of a Winter and Summer Sentinel-2 Image
+//
+// Version: Exercice solved 
+//
+//+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+//      EXERCICE 1: CLASSIFY (4 CLASSES) ENDALNE - WHERE WE          ///
+//     WE DID OUR EXCURSION AND INCLUDE SOMOE OF THE DATA POINTS     ///
+//           COLLECT IN SITU TO USE IT AS TRAINING DATA              ///
+//+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+//Define your area of interest
+//Create a rectangle and name it AOI
+//Or write the geometry with the following coordinates: ( 15.589, 78.153, 15.858, 78.211)
+
+var AOI = ee.Geometry.Rectangle( 15.589, 78.153, 15.858, 78.211)
+Map.addLayer(AOI, {'color': 'blue'}, 'AOI',false);    
+Map.centerObject(AOI, 11)
+
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////    2. PREPARING SATELLITE IMAGERY     /////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+//Define a "summer date" with ee.Date could be from 2022-06-01 to 2022-08-28
+//e.g. ee.Date('2022-01-01')
+
+var start = ee.Date('2022-06-01')
+var end = ee.Date('2022-08-28')
+
+
+//Make a collection: ee.ImageCollection() of Sentinel-2 data: 'COPERNICUS/S2'
+//Apply the following filters:  
+//.filterDate - to select the dates
+//.filterBounds - to select the location
+//...and to the cloud percentage!
+
+var S2summerCol = ee.ImageCollection('COPERNICUS/S2')
+                  .filterDate(start,end)
+                  .filterBounds(AOI)
+                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE',5))
+
+//Create a single image could be the first .first() or the average .mean()
+
+var S2summerImage = S2summerCol.first()
+print(S2summerImage, 'S2 info')
+
+// VISUALIZE THE IMAGE
+Map.addLayer(S2summerImage.clip(AOI), S2Vis, 'S2 Summer Image')
+
+
+
+//CREATION FOR WINTER TIME:
+//Create now the same but for winter time - but for now jum this to step 3
+//Define a "winter date": [2022-05-30 and '2022-07-02']
+var start2 = ee.Date('2022-05-30')
+var end2 = ee.Date('2022-07-02')
+var S2winterCol = ee.ImageCollection('COPERNICUS/S2')
+                  .filterDate(start2,end2)
+                  .filterBounds(AOI)
+                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE',5))
+var S2winterImage = S2winterCol.first()
+
+Map.addLayer(S2winterImage.clip(AOI), S2Vis, 'S2 Winter Image')
+
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////    3. Collecting data points for training data        /////////
+//////////////////////////////////////////////////////////////////////////////
+
+//Manually insert pin on the map of corresponding classes (bareSoil, vegetation and snow)
+
+//..Or manually insert the pins collect on field hike the following way:
+//e.g. var insituVeg = ee.Feature(ee.Geometry.Point([lon, lat])).set('class', 1)
+//e.g. var insituWat = ee.Feature(ee.Geometry.Point([lon, lat])).set('class', 3)
+// Make sure the classes are: bareSoil=0, vegetation=1, snow=2, water=3
+
+//Example of class vegetation collected during the field excursion":
+var veg1 = ee.Feature(ee.Geometry.Point([15.788, 78.1944])).set('class', 1)
+var wat1 = ee.Feature(ee.Geometry.Point([15.78203, 78.20695])).set('class', 3)
+Map.addLayer(veg1, { palette: ['red']}, 'In-situ collected vegetation coordinates data')
+Map.addLayer(wat1, { palette: ['red']}, 'In-situ collected water coordinates data')
+
+
+
+
+
+//Merge all the points in a single feature with NameOfaClass.merge(NameOfanotherClass)
+var fc = bareSoil.merge(vegetation).merge(snow).merge(water).merge(veg1)
+
+
+//Select the bands to be used
+var bands = ['B2', 'B3', 'B4', 'B8']
+
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////    3.1 Creating training data        //////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+//Now we will select the points and match them with the Satellite data
+
+var training = S2summerImage.select(bands).sampleRegions({
+  collection: fc,
+  properties: ['class'],
+  scale:10
+});
+
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////    4. Creating the classifier algorithm    ////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+var classifier = ee.Classifier.smileRandomForest(15).train({
+  features: training,
+  classProperty: 'class',
+  inputProperties: bands
+})
+
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////   5. Classify the image(s) that you create on step 2   ////////
+//////////////////////////////////////////////////////////////////////////////
+
+//Classify the summer image
+var classifiedSummer = S2summerImage.select(bands).classify(classifier)
+//Classify the winter image
+var classifiedWinter = S2winterImage.select(bands).classify(classifier)
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////   6. Visualize the results                       //////////////
+//////////////////////////////////////////////////////////////////////////////
+
+//Pay atention to change min and max values
+Map.addLayer(classifiedSummer.clip(AOI), {min: 0, max: 3, palette: ['red', 'green', 'white', 'blue']}, 'Classification Summer');
+Map.addLayer(classifiedWinter.clip(AOI), {min: 0, max: 3, palette: ['red', 'green', 'white', 'blue']}, 'Classification Winter');
+
+
+// EXPORT IMAGE AS ONE SINGLE IMAGE ON ITS AOI
+//Export.image.toDrive({
+//  image: classifiedSummer,
+//  description: 'Classification',
+//  region: AOI
+//});
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////   7. Challenges  //////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+//8.1 Check what happens if you add more data points? Do you see the results improving?
+//8.2 Go back to step 2. and do the same but for the winter period - adapt the code accordingly!
+//8.3 Do you want to do for the entire Svalbard?
+//8.4 Change detection of snow with .subtract() (images from winter and summer)
